@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="施氏食品">
+<meta name="theme-color" content="#1a0e0a">
+<title>施氏食品訂貨單</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=JetBrains+Mono:wght@500&display=swap');
+
+  :root {
+    --bg-deep: #1a0e0a;
+    --bg-card: #2a1610;
+    --bg-elevated: #3a2018;
+    --accent: #f97316;
+    --accent-glow: #fb923c;
+    --accent-deep: #c2410c;
+    --text: #fef3e2;
+    --text-dim: #d4a574;
+    --text-mute: #8b6f5a;
+    --divider: #4a2c20;
+    --success: #84cc16;
+    --danger: #ef4444;
+    /* 外網連不到 Google Fonts 時退回系統字型 */
+    --serif: 'Noto Serif TC', 'Songti TC', 'PingFang TC', 'Heiti TC', serif;
+    --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { overscroll-behavior: none; }
+
+  body {
+    font-family: var(--serif);
+    background: var(--bg-deep);
+    color: var(--text);
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    background-image:
+      radial-gradient(circle at 20% 0%, rgba(249, 115, 22, 0.15), transparent 50%),
+      radial-gradient(circle at 80% 100%, rgba(194, 65, 12, 0.1), transparent 50%);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  /* 修正：body 禁止選取會讓 iPhone 的複製失效，文字區要開放選取 */
+  textarea, .preview-content, .copy-area { user-select: text; -webkit-user-select: text; }
+
+  .header {
+    padding: 24px 20px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 1px solid var(--divider);
+    position: sticky;
+    top: 0;
+    background: linear-gradient(to bottom, var(--bg-deep) 80%, transparent);
+    z-index: 10;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding-top: calc(env(safe-area-inset-top) + 24px);
+  }
+  .title { font-size: 22px; font-weight: 900; letter-spacing: 3px; color: var(--accent); text-shadow: 0 0 30px rgba(249, 115, 22, 0.4); }
+  .title .sub { font-size: 10px; letter-spacing: 6px; color: var(--text-mute); font-weight: 500; margin-top: 4px; display: block; }
+  .order-count { background: var(--accent); color: var(--bg-deep); padding: 6px 14px; border-radius: 100px; font-family: var(--mono); font-weight: 500; font-size: 13px; letter-spacing: 1px; box-shadow: 0 4px 20px rgba(249, 115, 22, 0.4); }
+  .order-count.empty { background: var(--bg-elevated); color: var(--text-mute); box-shadow: none; }
+
+  .categories { padding: 20px 0 200px; }
+  .category { margin-bottom: 8px; }
+  .category-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px 12px; }
+  .category-emoji { font-size: 22px; }
+  .category-name { font-size: 17px; font-weight: 700; letter-spacing: 3px; color: var(--text-dim); }
+  .category-line { flex: 1; height: 1px; background: linear-gradient(to right, var(--divider), transparent); }
+  .items { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 20px; }
+  .item { background: var(--bg-card); border: 1px solid var(--divider); border-radius: 14px; padding: 16px 14px; cursor: pointer; transition: transform 0.15s, border-color 0.2s, background 0.2s; position: relative; overflow: hidden; min-height: 76px; display: flex; flex-direction: column; justify-content: center; }
+  .item:active { transform: scale(0.96); }
+  .item.has-qty { background: linear-gradient(135deg, var(--accent-deep), var(--bg-card)); border-color: var(--accent); }
+  .item-name { font-size: 15px; font-weight: 700; line-height: 1.4; color: var(--text); padding-right: 22px; }
+  .item-qty-badge { position: absolute; top: 8px; right: 8px; background: var(--accent); color: var(--bg-deep); min-width: 26px; height: 26px; padding: 0 6px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-weight: 700; font-size: 13px; box-shadow: 0 2px 10px rgba(249, 115, 22, 0.5); animation: pop 0.3s ease; }
+  @keyframes pop { 0% { transform: scale(0); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }
+
+  .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, var(--bg-deep) 60%, transparent); padding: 20px 20px calc(env(safe-area-inset-bottom) + 20px); z-index: 20; display: flex; gap: 10px; }
+  .btn { flex: 1; border: none; border-radius: 16px; padding: 18px; font-family: var(--serif); font-weight: 700; font-size: 16px; letter-spacing: 3px; cursor: pointer; transition: transform 0.15s, opacity 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn:active { transform: scale(0.97); }
+  .btn-clear { background: var(--bg-elevated); color: var(--text-mute); flex: 0 0 auto; padding: 18px 22px; letter-spacing: 1px; }
+  .btn-copy { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); color: var(--text); box-shadow: 0 8px 30px rgba(249, 115, 22, 0.4); }
+  .btn-copy:disabled { background: var(--bg-elevated); color: var(--text-mute); box-shadow: none; opacity: 0.6; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 100; display: none; align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.2s ease; }
+  .modal-backdrop.active { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal { background: var(--bg-card); border: 1px solid var(--divider); border-radius: 24px; padding: 28px 24px 24px; width: 100%; max-width: 320px; animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+  @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .modal-title { font-size: 20px; font-weight: 700; text-align: center; color: var(--text); margin-bottom: 4px; }
+  .modal-subtitle { font-size: 12px; text-align: center; color: var(--text-mute); margin-bottom: 24px; letter-spacing: 2px; }
+  .qty-input-wrap { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 24px; }
+  .qty-btn { width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--divider); background: var(--bg-elevated); color: var(--accent); font-size: 28px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.1s, background 0.2s; }
+  .qty-btn:active { transform: scale(0.92); background: var(--accent-deep); }
+  .qty-display { font-family: var(--mono); font-size: 56px; font-weight: 700; color: var(--accent); min-width: 80px; text-align: center; text-shadow: 0 0 30px rgba(249, 115, 22, 0.3); }
+  .qty-quick { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 20px; }
+  .qty-quick-btn { background: var(--bg-elevated); border: 1px solid var(--divider); border-radius: 10px; padding: 10px 0; color: var(--text-dim); font-family: var(--mono); font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
+  .qty-quick-btn:active { background: var(--accent-deep); color: var(--text); }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-btn { flex: 1; border: none; border-radius: 14px; padding: 14px; font-family: var(--serif); font-weight: 700; font-size: 14px; letter-spacing: 4px; cursor: pointer; transition: transform 0.1s; }
+  .modal-btn:active { transform: scale(0.97); }
+  .modal-cancel { background: var(--bg-elevated); color: var(--text-mute); }
+  .modal-confirm { background: var(--accent); color: var(--bg-deep); }
+  .modal-danger { background: var(--danger); color: var(--text); }
+
+  /* 自動複製失敗時的手動複製視窗 */
+  .copy-area { width: 100%; height: 220px; background: var(--bg-deep); color: var(--text); border: 1px solid var(--divider); border-radius: 12px; padding: 12px; font-family: var(--mono); font-size: 14px; line-height: 1.6; resize: none; margin-bottom: 16px; }
+
+  .toast { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 100px); left: 50%; transform: translateX(-50%) translateY(20px); background: var(--success); color: var(--bg-deep); padding: 14px 24px; border-radius: 100px; font-weight: 700; font-size: 14px; letter-spacing: 2px; box-shadow: 0 10px 40px rgba(132, 204, 22, 0.4); opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); z-index: 200; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .preview { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 80px); left: 20px; right: 20px; background: var(--bg-card); border: 1px solid var(--divider); border-radius: 16px; padding: 16px 18px; z-index: 15; transform: translateY(150%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); max-height: 50vh; overflow-y: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5); }
+  .preview.show { transform: translateY(0); }
+  .preview-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed var(--divider); }
+  .preview-title { font-size: 13px; color: var(--text-mute); letter-spacing: 3px; }
+  .preview-close { background: none; border: none; color: var(--text-mute); font-size: 18px; cursor: pointer; padding: 0 4px; }
+  .preview-content { font-family: var(--mono); font-size: 13px; color: var(--text); line-height: 1.7; white-space: pre-wrap; }
+  .preview-toggle { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 96px); right: 20px; width: 44px; height: 44px; border-radius: 50%; background: var(--bg-elevated); border: 1px solid var(--divider); color: var(--text-dim); font-size: 18px; cursor: pointer; z-index: 18; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4); transition: transform 0.2s; }
+  .preview-toggle:active { transform: scale(0.9); }
+  .preview-toggle.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="title">施氏食品訂貨單<span class="sub">SHIH FOOD ORDER</span></div>
+  </div>
+  <div class="order-count empty" id="orderCount">— 0 —</div>
+</div>
+
+<div class="categories" id="categories"></div>
+
+<button class="preview-toggle hidden" id="previewToggle">👁</button>
+
+<div class="preview" id="preview">
+  <div class="preview-header">
+    <span class="preview-title">訂單預覽</span>
+    <button class="preview-close" id="previewClose">✕</button>
+  </div>
+  <div class="preview-content" id="previewContent"></div>
+</div>
+
+<div class="bottom-bar">
+  <button class="btn btn-clear" id="clearBtn">清空</button>
+  <button class="btn btn-copy" id="copyBtn" disabled>複製訂單</button>
+</div>
+
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">品項</div>
+    <div class="modal-subtitle">請選擇數量</div>
+    <div class="qty-input-wrap">
+      <button class="qty-btn" id="qtyMinus">−</button>
+      <div class="qty-display" id="qtyDisplay">1</div>
+      <button class="qty-btn" id="qtyPlus">+</button>
+    </div>
+    <div class="qty-quick">
+      <button class="qty-quick-btn" data-qty="1">1</button>
+      <button class="qty-quick-btn" data-qty="2">2</button>
+      <button class="qty-quick-btn" data-qty="3">3</button>
+      <button class="qty-quick-btn" data-qty="5">5</button>
+      <button class="qty-quick-btn" data-qty="10">10</button>
+      <button class="qty-quick-btn" data-qty="20">20</button>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-cancel" id="modalCancel">取消</button>
+      <button class="modal-btn modal-confirm" id="modalConfirm">加入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 清空確認（取代 confirm()，加到主畫面的 Web App 裡 confirm 有時不會跳出） -->
+<div class="modal-backdrop" id="clearModal">
+  <div class="modal">
+    <div class="modal-title">確定清空訂單？</div>
+    <div class="modal-subtitle">所有品項數量都會歸零</div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-cancel" id="clearCancel">取消</button>
+      <button class="modal-btn modal-danger" id="clearConfirm">清空</button>
+    </div>
+  </div>
+</div>
+
+<!-- 自動複製失敗時：顯示文字讓使用者手動複製 -->
+<div class="modal-backdrop" id="copyModal">
+  <div class="modal">
+    <div class="modal-title">手動複製訂單</div>
+    <div class="modal-subtitle">長按下方文字 → 全選 → 拷貝</div>
+    <textarea class="copy-area" id="copyArea" readonly></textarea>
+    <div class="modal-actions">
+      <button class="modal-btn modal-cancel" id="copyClose">關閉</button>
+      <button class="modal-btn modal-confirm" id="copyShare">分享</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">已複製到剪貼簿</div>
+
+<script>
+  const MENU = [
+    { name: '餃類', emoji: '🥟', items: ['桂冠魚餃', '桂冠蝦餃', '桂冠蛋餃', '桂冠花枝餃', '桂冠燕餃', '西北魚餃'] },
+    { name: '雲吞類', emoji: '🥠', items: ['桂冠雲吞', '桂冠鮮蝦雲吞'] },
+    { name: '豆腐類', emoji: '🧈', items: ['中華超嫩豆腐', '中華雞蛋豆腐', '中華板豆腐', '中華黃金豆腐'] },
+    { name: '沙拉', emoji: '🥗', items: ['桂冠沙拉小', '桂冠沙拉中'] },
+    { name: '湯圓', emoji: '⚪', items: ['桂冠湯圓芝麻', '桂冠湯圓鮮肉', '桂冠湯圓花生'] },
+    { name: '日式火鍋料', emoji: '🍢', items: ['黃金魚蛋', '蝦球', '尋味棒', '魚卵捲', '德式起司腸'] },
+    { name: '豆花', emoji: '🥣', items: ['花生豆花', '水果豆花', '愛玉'] },
+    { name: '其他', emoji: '🌭', items: ['熱狗', '米血'] }
+  ];
+  const ALL_ITEMS = new Set(MENU.flatMap(c => c.items));
+
+  let order = {};
+  let currentItem = null;
+  let currentQty = 1;
+
+  // 讀回存檔時，丟掉菜單已經沒有的品項和不合法的數量（避免計數和複製出來的內容對不上）
+  try {
+    const saved = JSON.parse(localStorage.getItem('hotpot_order') || '{}');
+    for (const [k, v] of Object.entries(saved)) {
+      const n = parseInt(v, 10);
+      if (ALL_ITEMS.has(k) && n > 0) order[k] = Math.min(99, n);
+    }
+  } catch (e) {}
+  function saveOrder() { try { localStorage.setItem('hotpot_order', JSON.stringify(order)); } catch (e) {} }
+
+  function renderMenu() {
+    const container = document.getElementById('categories');
+    container.innerHTML = MENU.map(cat => `
+      <div class="category">
+        <div class="category-header">
+          <span class="category-emoji">${cat.emoji}</span>
+          <span class="category-name">${cat.name}</span>
+          <span class="category-line"></span>
+        </div>
+        <div class="items">
+          ${cat.items.map(item => `
+            <div class="item ${order[item] ? 'has-qty' : ''}" data-name="${item}">
+              ${order[item] ? `<div class="item-qty-badge">${order[item]}</div>` : ''}
+              <div class="item-name">${item}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+    container.querySelectorAll('.item').forEach(el => {
+      el.addEventListener('click', () => openModal(el.dataset.name));
+    });
+    updateOrderCount();
+  }
+
+  function updateOrderCount() {
+    const total = Object.values(order).reduce((s, n) => s + n, 0);
+    const types = Object.keys(order).length;
+    const el = document.getElementById('orderCount');
+    if (total === 0) {
+      el.textContent = '— 0 —';
+      el.classList.add('empty');
+      document.getElementById('copyBtn').disabled = true;
+      document.getElementById('previewToggle').classList.add('hidden');
+      hidePreview();
+    } else {
+      el.textContent = `${types} 品 / ${total} 件`;
+      el.classList.remove('empty');
+      document.getElementById('copyBtn').disabled = false;
+      document.getElementById('previewToggle').classList.remove('hidden');
+    }
+  }
+
+  function openModal(itemName) {
+    currentItem = itemName;
+    currentQty = order[itemName] || 1;
+    document.getElementById('modalTitle').textContent = itemName;
+    document.getElementById('qtyDisplay').textContent = currentQty;
+    document.getElementById('modalConfirm').textContent = order[itemName] ? '更新' : '加入';
+    document.getElementById('modal').classList.add('active');
+  }
+  function closeModal() { document.getElementById('modal').classList.remove('active'); currentItem = null; }
+  function setQty(n) { currentQty = Math.max(0, Math.min(99, n)); document.getElementById('qtyDisplay').textContent = currentQty; }
+
+  document.getElementById('qtyMinus').addEventListener('click', () => setQty(currentQty - 1));
+  document.getElementById('qtyPlus').addEventListener('click', () => setQty(currentQty + 1));
+  document.querySelectorAll('.qty-quick-btn').forEach(btn => {
+    btn.addEventListener('click', () => setQty(parseInt(btn.dataset.qty, 10)));
+  });
+  document.getElementById('modalCancel').addEventListener('click', closeModal);
+  document.getElementById('modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
+  document.getElementById('modalConfirm').addEventListener('click', () => {
+    if (currentItem) {
+      if (currentQty > 0) order[currentItem] = currentQty;
+      else delete order[currentItem];
+      saveOrder();
+      renderMenu();
+      updatePreview();
+    }
+    closeModal();
+  });
+
+  function buildOrderText() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const dateStr = `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const lines = [];
+    MENU.forEach(cat => {
+      cat.items.forEach(item => { if (order[item]) lines.push(`${item} x ${order[item]}`); });
+    });
+    return `訂單時間：${dateStr}\n———————————\n${lines.join('\n')}`;
+  }
+
+  function updatePreview() { document.getElementById('previewContent').textContent = buildOrderText(); }
+  function showPreview() { updatePreview(); document.getElementById('preview').classList.add('show'); }
+  function hidePreview() { document.getElementById('preview').classList.remove('show'); }
+  document.getElementById('previewToggle').addEventListener('click', showPreview);
+  document.getElementById('previewClose').addEventListener('click', hidePreview);
+
+  // 舊式複製：iPhone 要可選取的元素＋setSelectionRange，並檢查回傳值（失敗不會丟例外）
+  function legacyCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px;-webkit-user-select:text;user-select:text;';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    window.getSelection && window.getSelection().removeAllRanges();
+    return ok;
+  }
+
+  async function copyOrder() {
+    const text = buildOrderText();
+    // 架在 NAS 用 http:// 開時不是安全來源，navigator.clipboard 不存在
+    if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) {
+      try { await navigator.clipboard.writeText(text); showToast('✅ 已複製到剪貼簿'); return; } catch (e) {}
+    }
+    if (legacyCopy(text)) { showToast('✅ 已複製到剪貼簿'); return; }
+    openCopyModal(text);
+  }
+  document.getElementById('copyBtn').addEventListener('click', copyOrder);
+
+  function openCopyModal(text) {
+    const area = document.getElementById('copyArea');
+    area.value = text;
+    document.getElementById('copyShare').style.display = navigator.share ? '' : 'none';
+    document.getElementById('copyModal').classList.add('active');
+    setTimeout(() => { area.focus(); area.setSelectionRange(0, text.length); }, 50);
+  }
+  function closeCopyModal() { document.getElementById('copyModal').classList.remove('active'); }
+  document.getElementById('copyClose').addEventListener('click', closeCopyModal);
+  document.getElementById('copyModal').addEventListener('click', (e) => { if (e.target.id === 'copyModal') closeCopyModal(); });
+  document.getElementById('copyShare').addEventListener('click', async () => {
+    try { await navigator.share({ text: document.getElementById('copyArea').value }); closeCopyModal(); } catch (e) {}
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    if (Object.keys(order).length === 0) return;
+    document.getElementById('clearModal').classList.add('active');
+  });
+  function closeClearModal() { document.getElementById('clearModal').classList.remove('active'); }
+  document.getElementById('clearCancel').addEventListener('click', closeClearModal);
+  document.getElementById('clearModal').addEventListener('click', (e) => { if (e.target.id === 'clearModal') closeClearModal(); });
+  document.getElementById('clearConfirm').addEventListener('click', () => {
+    order = {};
+    saveOrder();
+    renderMenu();
+    hidePreview();
+    closeClearModal();
+  });
+
+  let toastTimer = null;
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+  }
+
+  renderMenu();
+  if (Object.keys(order).length > 0) updatePreview();
+</script>
+
+</body>
+</html>
